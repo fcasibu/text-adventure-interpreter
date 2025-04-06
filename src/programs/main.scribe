@@ -1,0 +1,42 @@
+VAR playerLocation = cave
+
+ITEM "Rusty Sword" ID=sword
+  DESC "It looks dull, but the edge seems sharp enough."
+  LOCATION=cave
+  TAKEABLE=FALSE # Explicitly false for now
+
+ITEM "Stick" ID=stick
+  DESC "A long, dry stick lies on the ground."
+  LOCATION=cave
+  TAKEABLE=FALSE
+
+ITEM "Cloth" ID=cloth
+  DESC "A strip of dry cloth."
+  LOCATION=cave
+  TAKEABLE=FALSE
+
+ROOM "Cave Entrance" ID=cave
+  DESC "A dark, dripping cave mouth yawns before you. Loose rocks and some debris litter the floor."
+  # No exits or complex events yet
+
+ROOM "Dark Tunnel" ID=tunnel
+  DESC "A damp, narrow tunnel. Moss glows faintly on the walls."
+
+ROOM "Hidden Chamber" ID=chamber
+  DESC "An ancient chamber covered in strange runes. A faint ethereal glow emanates from the walls."
+
+COMMAND LOOK
+  EFFECT EXECUTE displayRoomInfo
+
+SCRIPT displayRoomInfo
+  MESSAGE "--- {room[playerLocation].name} ---"
+  MESSAGE room[playerLocation].desc
+  IF room[playerLocation] HAS ITEMS THEN
+    MESSAGE "You see:"
+    FOR item IN room[playerLocation].items DO
+      IF item.location == playerLocation THEN
+         MESSAGE " - {item.name}"
+      ENDIF
+    ENDFOR
+  ENDIF
+ENDSCRIPT
