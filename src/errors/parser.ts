@@ -143,3 +143,25 @@ export class UnexpectedTokenError extends Error {
     }
   }
 }
+
+export class UndefinedIdentifierError extends Error {
+  constructor(type: string, identifier: string, line: number, col: number) {
+    super(`${line}:${col}: Unknown ${type} "${identifier}"`);
+    this.name = 'UndefinedIdentifierError';
+
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, UndefinedIdentifierError);
+    }
+  }
+}
+
+export class ReferenceError extends Error {
+  constructor(message: string, line: number, col: number) {
+    super(`${line}:${col}: ${message}`);
+    this.name = 'ReferenceError';
+
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, ReferenceError);
+    }
+  }
+}
