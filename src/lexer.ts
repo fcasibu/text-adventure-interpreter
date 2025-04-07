@@ -40,10 +40,14 @@ export class Lexer {
   }
 
   public tokenize(): Token[] {
+    if (!this.source) return [];
+
     while (!this.eof()) {
       this.skipWhitespace();
       this.scan();
     }
+
+    this.addToken(TokenType.EOF, 'EOF', this.col);
 
     return this.tokens;
   }
