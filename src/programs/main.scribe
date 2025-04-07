@@ -1,4 +1,7 @@
 VAR playerLocation = cave
+VAR hp = 10
+VAR name = "batman"
+VAR bool = true
 
 ITEM "Rusty Sword" ID=sword
   DESC "It looks dull, but the edge seems sharp enough."

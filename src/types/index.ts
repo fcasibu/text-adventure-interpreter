@@ -107,9 +107,13 @@ export interface ForAction {
 export type ScriptAction = MessageAction | IfAction | ForAction;
 export type ScriptBlock = ScriptAction[];
 
+export type VariableType = 'NUMBER' | 'STRING' | 'BOOL' | 'ID';
+export type VariableValue = string | boolean | number;
+
 export interface GameVariableDefinition {
   name: VariableName;
-  initialValue: RoomId;
+  type: VariableType;
+  initialValue: VariableValue;
   line: number;
   col: number;
 }
@@ -119,6 +123,8 @@ export interface ItemDefinition {
   name: string;
   desc: string;
   initialLocation: RoomId;
+  // will probably make this an enum or string literal isntead of a boolean
+  // likely 'craftable' | 'droppable' | 'wieldable' ... maybe more
   isTakeable: boolean;
   line: number;
   col: number;
@@ -155,8 +161,9 @@ export interface ScriptDefinition {
 
 export interface GameDefinition {
   variables: {
+    // required variables to define (probably not good)
     playerLocation: GameVariableDefinition;
-  };
+  } & Record<VariableName, GameVariableDefinition>;
   items: Record<ItemId, ItemDefinition>;
   rooms: Record<RoomId, RoomDefinition>;
   commands: CommandDefinition[];

@@ -251,7 +251,11 @@ export class SymbolParser {
 
   private expect(tokenType: TokenType, message: string) {
     if (!SymbolParser.match(this.currentToken.type, tokenType)) {
-      throw new UnexpectedTokenError(message);
+      throw new UnexpectedTokenError(
+        message,
+        this.currentToken.line,
+        this.currentToken.col,
+      );
     }
 
     this.consume();

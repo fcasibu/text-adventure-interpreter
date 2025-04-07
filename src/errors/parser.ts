@@ -134,8 +134,8 @@ export class UnterminatedBlockError extends Error {
 }
 
 export class UnexpectedTokenError extends Error {
-  constructor(message: string) {
-    super(message);
+  constructor(message: string, line: number, col: number) {
+    super(`${line}:${col}: ${message}`);
     this.name = 'UnexpectedTokenError';
 
     if (Error.captureStackTrace) {
@@ -162,6 +162,17 @@ export class ReferenceError extends Error {
 
     if (Error.captureStackTrace) {
       Error.captureStackTrace(this, ReferenceError);
+    }
+  }
+}
+
+export class InvalidNumberFormatError extends Error {
+  constructor(message: string, line: number, col: number) {
+    super(`${line}:${col}: ${message}`);
+    this.name = 'InvalidNumberFormatError';
+
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, InvalidNumberFormatError);
     }
   }
 }
