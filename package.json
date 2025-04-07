@@ -19,5 +19,8 @@
   },
   "peerDependencies": {
     "typescript": "^5"
+  },
+  "dependencies": {
+    "@types/node": "^22.14.0"
   }
 }
