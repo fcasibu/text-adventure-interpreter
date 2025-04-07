@@ -3,17 +3,17 @@ VAR playerLocation = cave
 ITEM "Rusty Sword" ID=sword
   DESC "It looks dull, but the edge seems sharp enough."
   LOCATION=cave
-  TAKEABLE=FALSE # Explicitly false for now
+  TAKEABLE=false
 
 ITEM "Stick" ID=stick
   DESC "A long, dry stick lies on the ground."
   LOCATION=cave
-  TAKEABLE=FALSE
+  TAKEABLE=false
 
 ITEM "Cloth" ID=cloth
   DESC "A strip of dry cloth."
   LOCATION=cave
-  TAKEABLE=FALSE
+  TAKEABLE=false
 
 ROOM "Cave Entrance" ID=cave
   DESC "A dark, dripping cave mouth yawns before you. Loose rocks and some debris litter the floor."
