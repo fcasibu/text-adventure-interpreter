@@ -47,6 +47,11 @@ export class Parser {
           break;
         }
 
+        case TokenType.COMMAND: {
+          this.parseCommandDefinition();
+          break;
+        }
+
         case TokenType.EOL: {
           this.consume();
           break;
@@ -280,6 +285,83 @@ export class Parser {
 
         default:
           throw new Error('not yet implemented');
+      }
+    }
+  }
+
+  private parseCommandDefinition() {
+    const { line: commandLine, col: commandCol } = this.currentToken;
+    this.expect(
+      TokenType.COMMAND,
+      `Expected COMMAND found ${this.currentToken.value}`,
+    );
+    const { value: commandVerb } = this.currentToken;
+
+    this.expect(
+      TokenType.STRING,
+      `Expected string name of COMMAND found ${this.currentToken.value}`,
+    );
+
+    this.expect(
+      TokenType.EOL,
+      `Expected EOL after COMMAND name found ${this.currentToken.value}`,
+    );
+
+    const commandProperties = new Set([TokenType.EFFECT]);
+
+    while (commandProperties.has(this.currentToken.type)) {
+      const { line: effectLine, col: effectCol } = this.currentToken;
+      this.expect(
+        TokenType.EFFECT,
+        `Expected EFFECT found ${this.currentToken.value}`,
+      );
+
+      switch (this.currentToken.type) {
+        case TokenType.EXECUTE: {
+          this.consume(); // skip EXECUTE keyword
+
+          const {
+            value: scriptName,
+            line: scriptNameLine,
+            col: scriptNameCol,
+          } = this.currentToken;
+          const referencedSymbol = this.symbolsMap.get(scriptName);
+
+          if (!referencedSymbol) {
+            throw new UndefinedIdentifierError(
+              'Identifier',
+              scriptName,
+              scriptNameLine,
+              scriptNameCol,
+            );
+          }
+
+          this.gameDefinitionBuilder.addCommand({
+            line: commandLine,
+            col: commandCol,
+            verb: commandVerb,
+            effect: {
+              kind: 'callScript',
+              scriptId: scriptName,
+              line: effectLine,
+              col: effectCol,
+            },
+          });
+
+          this.consume(); // skip value
+          this.expect(
+            TokenType.EOL,
+            `Expected end of line found ${this.currentToken.value}`,
+          );
+          break;
+        }
+        default: {
+          throw new UnexpectedTokenError(
+            `Unexpected token ${this.currentToken.value} found within the effect block`,
+            effectLine,
+            effectCol,
+          );
+        }
       }
     }
   }

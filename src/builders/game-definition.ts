@@ -3,6 +3,7 @@ import { PLAYER_LOCATION_VAR } from '../constants/parser';
 import {
   ItemInteractions,
   NamedEntities,
+  type CommandDefinition,
   type GameDefinition,
   type GameVariableDefinition,
   type ItemDefinition,
@@ -54,6 +55,12 @@ export class GameDefinitionBuilder {
       initialLocation: '',
       interactions: [],
     };
+
+    return this;
+  }
+
+  public addCommand(definition: CommandDefinition) {
+    this.gameDefinition.commands.push(definition);
 
     return this;
   }
