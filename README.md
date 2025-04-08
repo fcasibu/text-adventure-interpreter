@@ -1,15 +1,5 @@
 # text-adventure-interpreter
 
-To install dependencies:
+Interpreting a programming language isn't fun but interpreting a text adventure DSL is
 
-```bash
-bun install
-```
-
-To run:
-
-```bash
-bun run index.ts
-```
-
-This project was created using `bun init` in bun v1.2.7. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.
+I use Grok to create and think of the DSL.

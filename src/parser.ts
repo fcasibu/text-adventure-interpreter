@@ -2,8 +2,13 @@ import { strict as assert } from 'assert';
 import {
   ItemInteractions,
   TokenType,
+  type CollectionCheckCondition,
+  type ComparisonCondition,
+  type Condition,
   type Expression,
+  type ForAction,
   type GameDefinition,
+  type IfAction,
   type MessageAction,
   type ScriptAction,
   type ScriptBlock,
@@ -116,9 +121,7 @@ export class Parser {
       TokenType.ITEM,
       `Expected ITEM found ${this.currentToken.value}`,
     );
-    const { value: name } = this.currentToken;
-
-    this.expect(
+    const { value: name } = this.expect(
       TokenType.STRING,
       `Expected string name of ITEM found ${this.currentToken.value}`,
     );
@@ -240,9 +243,7 @@ export class Parser {
       TokenType.ROOM,
       `Expected ROOM found ${this.currentToken.value}`,
     );
-    const { value: name } = this.currentToken;
-
-    this.expect(
+    const { value: name } = this.expect(
       TokenType.STRING,
       `Expected string name of ITEM found ${this.currentToken.value}`,
     );
@@ -302,9 +303,8 @@ export class Parser {
       TokenType.COMMAND,
       `Expected COMMAND found ${this.currentToken.value}`,
     );
-    const { value: commandVerb } = this.currentToken;
 
-    this.expect(
+    const { value: commandVerb } = this.expect(
       TokenType.STRING,
       `Expected string name of COMMAND found ${this.currentToken.value}`,
     );
@@ -374,15 +374,16 @@ export class Parser {
   }
 
   private parseScriptDefinition() {
-    const scriptToken = this.currentToken;
-    this.expect(
+    const scriptToken = this.expect(
       TokenType.SCRIPT,
       `Expected SCRIPT found ${this.currentToken.value}`,
     );
-    const nameToken = this.currentToken;
+    const nameToken = this.expect(
+      TokenType.IDENT,
+      'Expected script identifier after "SCRIPT"',
+    );
     const scriptName = nameToken.value;
 
-    this.expect(TokenType.IDENT, 'Expected script identifier after "SCRIPT"');
     this.expect(
       TokenType.EOL,
       `Expected EOL after SCRIPT identifier found ${this.currentToken.value}`,
@@ -394,26 +395,13 @@ export class Parser {
       col: scriptToken.col,
     });
 
-    const scriptBody: ScriptBlock = [];
-    while (!Parser.match(this.currentToken.type, TokenType.ENDSCRIPT)) {
-      let action: ScriptAction | undefined;
-
-      if (this.currentToken.type === TokenType.MESSAGE) {
-        action = this.parseScriptAction();
-      } else {
-        this.consume();
-      }
-
-      if (action) {
-        scriptBody.push(action);
-      }
-    }
+    const scriptBody: ScriptBlock = this.parseBlockUntil(TokenType.ENDSCRIPT);
 
     this.gameDefinitionBuilder.setScriptBody(scriptName, scriptBody);
 
     this.expect(
       TokenType.ENDSCRIPT,
-      `Expected ENDSCRIPT for script '${scriptName}' but found ${this.currentToken.value}`,
+      `Expected ENDSCRIPT for script '${scriptName}' but found ${this.currentToken.type}`,
     );
     this.expect(
       TokenType.EOL,
@@ -423,18 +411,27 @@ export class Parser {
 
   private parseScriptAction(): ScriptAction {
     const actionToken = this.currentToken;
-
     switch (actionToken.type) {
       case TokenType.MESSAGE:
         return this.parseMessageAction();
+      case TokenType.IF:
+        return this.parseIfAction();
+      case TokenType.FOR:
+        return this.parseForAction();
       default:
-        throw new Error('not yet implemented');
+        throw new UnexpectedTokenError(
+          `Unexpected token type ${actionToken.value} inside script block. Expected action keyword (MESSAGE, IF, FOR, etc.).`,
+          actionToken.line,
+          actionToken.col,
+        );
     }
   }
 
   private parseMessageAction(): MessageAction {
-    this.expect(TokenType.MESSAGE, `Expected MESSAGE`);
-
+    this.expect(
+      TokenType.MESSAGE,
+      `Expected MESSAGE but found ${this.currentToken.value}`,
+    );
     const messageLine = this.currentToken.line;
     const messageCol = this.currentToken.col;
     let actionData: Pick<MessageAction, 'messageTemplate' | 'valueExpression'>;
@@ -443,8 +440,10 @@ export class Parser {
       const expression = this.parseExpression();
       actionData = { valueExpression: expression };
     } else if (Parser.match(this.currentToken.type, TokenType.STRING)) {
-      const templateToken = this.currentToken;
-      this.consume();
+      const templateToken = this.expect(
+        TokenType.STRING,
+        'Expected string literal after MESSAGE',
+      );
       actionData = { messageTemplate: templateToken.value };
     } else {
       throw new UnexpectedTokenError(
@@ -461,14 +460,156 @@ export class Parser {
       col: messageCol,
     };
 
-    this.expect(TokenType.EOL, 'Expected end of line after MESSAGE statement');
+    this.expect(
+      TokenType.EOL,
+      `Expected end of line after MESSAGE statement content but found $${this.currentToken.value}`,
+    );
     return messageAction;
+  }
+
+  private parseIfAction(): IfAction {
+    const ifToken = this.expect(TokenType.IF, 'Expected "IF" keyword');
+    const condition = this.parseCondition();
+    this.expect(TokenType.THEN, 'Expected "THEN" keyword after IF condition');
+    this.expect(TokenType.EOL, 'Expected end of line after THEN');
+
+    // TODO(fcasibu): elseif/ else
+    const thenBranch = this.parseBlockUntil(TokenType.ENDIF);
+
+    this.expect(TokenType.ENDIF, 'Expected "ENDIF" to close IF statement');
+    this.expect(TokenType.EOL, 'Expected end of line after ENDIF');
+
+    const ifAction: IfAction = {
+      kind: 'if',
+      condition: condition,
+      thenBranch: thenBranch,
+      line: ifToken.line,
+      col: ifToken.col,
+    };
+    return ifAction;
+  }
+
+  private parseForAction(): ForAction {
+    const forToken = this.expect(TokenType.FOR, 'Expected "FOR" keyword');
+    const variableToken = this.expect(
+      TokenType.IDENT,
+      'Expected loop variable name after FOR',
+    );
+    const variableName = variableToken.value;
+    this.expect(TokenType.IN, 'Expected "IN" keyword after loop variable');
+    const collectionExpr = this.parseExpression();
+
+    if (
+      collectionExpr.kind !== 'propertyAccess' &&
+      collectionExpr.kind !== 'variableAccess' &&
+      collectionExpr.kind !== 'indexedAccess'
+    ) {
+      throw new UnexpectedTokenError(
+        'Invalid expression type found for FOR loop collection, found ${this.currentToken.value}',
+        forToken.line,
+        forToken.col,
+      );
+    }
+
+    this.expect(
+      TokenType.DO,
+      'Expected "DO" keyword after collection expression',
+    );
+    this.expect(
+      TokenType.EOL,
+      `Expected end of line after DO but foudn ${this.currentToken.value}`,
+    );
+
+    const body = this.parseBlockUntil(TokenType.ENDFOR);
+
+    this.expect(TokenType.ENDFOR, 'Expected "ENDFOR" to close FOR loop');
+    this.expect(
+      TokenType.EOL,
+      `Expected end of line after ENDFOR but found ${this.currentToken.value}`,
+    );
+
+    const forAction: ForAction = {
+      kind: 'for',
+      variableName: variableName,
+      collection: collectionExpr,
+      body: body,
+      line: forToken.line,
+      col: forToken.col,
+    };
+    return forAction;
+  }
+
+  private parseCondition(): Condition {
+    const startLine = this.currentToken.line;
+    const startCol = this.currentToken.col;
+    const leftExpr = this.parseExpression();
+
+    if (Parser.match(this.currentToken.type, TokenType.HAS)) {
+      this.consume();
+      this.expect(TokenType.ITEMS, 'Expected "ITEMS" after "HAS"');
+
+      if (
+        leftExpr.kind !== 'indexedAccess' &&
+        leftExpr.kind !== 'propertyAccess'
+      ) {
+        throw new UnexpectedTokenError(
+          '"HAS ITEMS" condition requires a valid object/collection access',
+          startLine,
+          startCol,
+        );
+      }
+
+      const condition: CollectionCheckCondition = {
+        kind: 'collectionCheck',
+        target: leftExpr,
+        checkType: 'HAS_ITEMS',
+        line: startLine,
+        col: startCol,
+      };
+      return condition;
+    } else if (Parser.match(this.currentToken.type, TokenType.EQ)) {
+      this.consume();
+      const rightExpr = this.parseExpression();
+
+      const condition: ComparisonCondition = {
+        kind: 'comparison',
+        left: leftExpr,
+        operator: '==',
+        right: rightExpr,
+        line: startLine,
+        col: startCol,
+      };
+      return condition;
+    } else {
+      throw new UnexpectedTokenError(
+        `Expected condition operator (HAS, ==) after expression, but found ${this.currentToken.type}`,
+        this.currentToken.line,
+        this.currentToken.col,
+      );
+    }
+  }
+
+  private parseBlockUntil(...endTokens: TokenType[]): ScriptBlock {
+    const block: ScriptBlock = [];
+    const endTokenSet = new Set(endTokens);
+
+    while (!endTokenSet.has(this.currentToken.type)) {
+      if (Parser.match(this.currentToken.type, TokenType.EOL)) {
+        this.consume();
+        continue;
+      }
+      block.push(this.parseScriptAction());
+    }
+
+    return block;
   }
 
   private parseExpression(): Expression {
     let leftExpr = this.parsePrimaryExpression();
-
-    while (true) {
+    while (
+      Parser.match(this.currentToken.type, TokenType.DOT) ||
+      Parser.match(this.currentToken.type, TokenType.LBRACKET)
+    ) {
       if (Parser.match(this.currentToken.type, TokenType.DOT)) {
         this.consume();
         const propertyToken = this.currentToken;
@@ -488,12 +629,11 @@ export class Parser {
           line: propertyToken.line,
           col: propertyToken.col,
         };
-        continue;
       } else if (Parser.match(this.currentToken.type, TokenType.LBRACKET)) {
         const lBracketToken = this.currentToken;
         this.consume();
         const indexExpr = this.parseExpression();
-        this.expect(TokenType.RBRACKET, "Expected ']' after index expression.");
+        this.expect(TokenType.RBRACKET, 'Expected "]" after index expression');
 
         leftExpr = {
           kind: 'indexedAccess',
@@ -502,11 +642,9 @@ export class Parser {
           line: lBracketToken.line,
           col: lBracketToken.col,
         };
-        continue;
-      } else {
-        break;
       }
     }
+
     return leftExpr;
   }
 
@@ -525,7 +663,7 @@ export class Parser {
     }
 
     throw new UnexpectedTokenError(
-      `Expected expression start (identifier or literal) but found ${token.value}`,
+      `Expected expression start (Identifier or Literal), but found ${token.type}`,
       token.line,
       token.col,
     );

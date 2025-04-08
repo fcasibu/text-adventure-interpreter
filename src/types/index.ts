@@ -31,6 +31,7 @@ export interface SymbolDefinition {
   definitionColumn: number;
 }
 
+// mainly for clarity
 export type EntityId = string;
 export type RoomId = EntityId;
 export type ItemId = EntityId;
@@ -72,7 +73,7 @@ export interface BaseCondition {
 
 export interface CollectionCheckCondition extends BaseCondition {
   kind: 'collectionCheck';
-  target: PropertyAccessExpression;
+  target: Expression;
   checkType: 'HAS_ITEMS';
 }
 
@@ -105,7 +106,7 @@ export interface IfAction extends BaseScriptAction {
 export interface ForAction extends BaseScriptAction {
   kind: 'for';
   variableName: string;
-  collection: PropertyAccessExpression;
+  collection: Expression;
   body: ScriptBlock;
 }
 
