@@ -52,6 +52,11 @@ export class Parser {
           break;
         }
 
+        case TokenType.SCRIPT: {
+          this.parseScriptDefinition();
+          break;
+        }
+
         case TokenType.EOL: {
           this.consume();
           break;
@@ -365,6 +370,107 @@ export class Parser {
       }
     }
   }
+
+  private parseScriptDefinition() {
+    const { line: scriptLine, col: scriptCol } = this.currentToken;
+    this.expect(
+      TokenType.SCRIPT,
+      `Expected SCRIPT found ${this.currentToken.value}`,
+    );
+    const { value: scriptName } = this.currentToken;
+
+    this.expect(TokenType.IDENT, 'Expected script identifier after "SCRIPT"');
+    this.expect(
+      TokenType.EOL,
+      `Expected EOL after SCRIPT identifier found ${this.currentToken.value}`,
+    );
+
+    this.gameDefinitionBuilder.setInitialScriptDefinition({
+      id: scriptName,
+      line: scriptLine,
+      col: scriptCol,
+    });
+
+    const scriptProperties = new Set([
+      TokenType.MESSAGE,
+      TokenType.FOR,
+      TokenType.IF,
+    ]);
+
+    while (scriptProperties.has(this.currentToken.type)) {
+      switch (this.currentToken.type) {
+        case TokenType.MESSAGE: {
+          this.consume(); // skip MESSAGE keyword
+
+          const {
+            value: messageTemplate,
+            line: messageLine,
+            col: messageCol,
+          } = this.currentToken;
+
+          this.gameDefinitionBuilder.setScriptMessageAction(scriptName, {
+            messageTemplate,
+            line: messageLine,
+            col: messageCol,
+          });
+
+          this.consume(); // skip value
+          this.expect(
+            TokenType.EOL,
+            `Expected end of line found ${this.currentToken.value}`,
+          );
+          break;
+        }
+        default: {
+          throw new UnexpectedTokenError(
+            `Unexpected token ${this.currentToken.value} found within the script block ${scriptName}`,
+            scriptLine,
+            scriptCol,
+          );
+        }
+      }
+    }
+  }
+
+  private parseScriptBlock(scriptToken: Token) {
+    const { value: scriptName, line: scriptLine, col: scriptCol } = scriptToken;
+
+    switch (this.currentToken.type) {
+      case TokenType.MESSAGE: {
+        this.consume(); // skip MESSAGE keyword
+
+        const {
+          value: messageTemplate,
+          line: messageLine,
+          col: messageCol,
+        } = this.currentToken;
+
+        this.gameDefinitionBuilder.setScriptMessageAction(scriptName, {
+          messageTemplate,
+          line: messageLine,
+          col: messageCol,
+        });
+
+        this.consume(); // skip value
+        this.expect(
+          TokenType.EOL,
+          `Expected end of line found ${this.currentToken.value}`,
+        );
+        break;
+      }
+      default: {
+        throw new UnexpectedTokenError(
+          `Unexpected token ${this.currentToken.value} found within the script block ${scriptName}`,
+          scriptLine,
+          scriptCol,
+        );
+      }
+    }
+  }
+
+  private parsePropertyAccessExpression() {}
+
+  private parseIndexedAccessExpression() {}
 
   private parseVariableValue(): {
     variableValue: VariableValue;

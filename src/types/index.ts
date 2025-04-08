@@ -38,106 +38,79 @@ export type VariableName = string;
 export type ScriptId = string;
 export type CommandVerb = string;
 
-export interface VariableAccessExpression {
+export interface BaseExpression {
+  line: number;
+  col: number;
+}
+
+export interface VariableAccessExpression extends BaseExpression {
   kind: 'variableAccess';
   variableName: string;
-  line: number;
-  col: number;
 }
 
-export interface IndexedAccessExpression {
+export interface IndexedAccessExpression extends BaseExpression {
   kind: 'indexedAccess';
-  object: VariableAccessExpression;
+  objectName: EntityId;
   index: VariableAccessExpression;
-  line: number;
-  col: number;
 }
 
-export interface PropertyAccessExpression {
+export interface PropertyAccessExpression extends BaseExpression {
   kind: 'propertyAccess';
-  object: VariableAccessExpression | IndexedAccessExpression;
+  object: IndexedAccessExpression | VariableAccessExpression;
   propertyName: string;
+}
+
+export type Expression =
+  | VariableAccessExpression
+  | IndexedAccessExpression
+  | PropertyAccessExpression;
+
+export interface BaseCondition {
   line: number;
   col: number;
 }
 
-export interface HasItemsCondition {
-  kind: 'hasItems';
-  target: IndexedAccessExpression;
-  line: number;
-  col: number;
+export interface CollectionCheckCondition extends BaseCondition {
+  kind: 'collectionCheck';
+  target: PropertyAccessExpression;
+  checkType: 'HAS_ITEMS';
 }
 
-export interface ComparisonCondition {
+export interface ComparisonCondition extends BaseCondition {
   kind: 'comparison';
-  left: PropertyAccessExpression;
+  left: Expression;
   operator: '==';
-  right: VariableAccessExpression;
+  right: Expression;
+}
+
+export type Condition = CollectionCheckCondition | ComparisonCondition;
+
+export interface BaseScriptAction {
   line: number;
   col: number;
 }
 
-export type Condition = HasItemsCondition | ComparisonCondition;
-
-export interface MessageAction {
+export interface MessageAction extends BaseScriptAction {
   kind: 'message';
-  messageTemplate: string;
-  line: number;
-  col: number;
+  messageTemplate?: string;
+  valueExpression?: Expression;
 }
 
-export interface IfAction {
+export interface IfAction extends BaseScriptAction {
   kind: 'if';
   condition: Condition;
   thenBranch: ScriptBlock;
-  line: number;
-  col: number;
 }
 
-export interface ForAction {
+export interface ForAction extends BaseScriptAction {
   kind: 'for';
   variableName: string;
   collection: PropertyAccessExpression;
   body: ScriptBlock;
-  line: number;
-  col: number;
 }
 
 export type ScriptAction = MessageAction | IfAction | ForAction;
 export type ScriptBlock = ScriptAction[];
-
-export type VariableType = 'NUMBER' | 'STRING' | 'BOOL' | 'ID';
-export type VariableValue = string | boolean | number;
-
-export interface GameVariableDefinition {
-  name: VariableName;
-  type: VariableType;
-  initialValue: VariableValue;
-  line: number;
-  col: number;
-}
-
-export enum ItemInteractions {
-  Takeable,
-}
-
-export interface ItemDefinition {
-  id: ItemId;
-  name: string;
-  desc: string;
-  initialLocation: RoomId;
-  interactions: ItemInteractions[];
-  line: number;
-  col: number;
-}
-
-export interface RoomDefinition {
-  id: RoomId;
-  name: string;
-  desc: string;
-  line: number;
-  col: number;
-}
 
 export interface CallScriptEffect {
   kind: 'callScript';
@@ -146,18 +119,46 @@ export interface CallScriptEffect {
   col: number;
 }
 
-export interface CommandDefinition {
-  verb: CommandVerb;
-  effect: CallScriptEffect;
+export type VariableType = 'NUMBER' | 'STRING' | 'BOOL' | 'ID';
+export type VariableValue = string | boolean | number;
+
+export interface BaseDefinition {
   line: number;
   col: number;
 }
 
-export interface ScriptDefinition {
+export enum ItemInteractions {
+  Takeable,
+}
+
+export interface GameVariableDefinition extends BaseDefinition {
+  name: VariableName;
+  type: VariableType;
+  initialValue: VariableValue;
+}
+
+export interface ItemDefinition extends BaseDefinition {
+  id: ItemId;
+  name: string;
+  desc: string;
+  initialLocation: RoomId;
+  interactions: ItemInteractions[];
+}
+
+export interface RoomDefinition extends BaseDefinition {
+  id: RoomId;
+  name: string;
+  desc: string;
+}
+
+export interface CommandDefinition extends BaseDefinition {
+  verb: CommandVerb;
+  effect: CallScriptEffect;
+}
+
+export interface ScriptDefinition extends BaseDefinition {
   id: ScriptId;
   body: ScriptBlock;
-  line: number;
-  col: number;
 }
 
 export interface GameDefinition {

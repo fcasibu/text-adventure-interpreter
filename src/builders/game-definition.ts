@@ -8,8 +8,11 @@ import {
   type GameVariableDefinition,
   type ItemDefinition,
   type ItemId,
+  type MessageAction,
   type RoomDefinition,
   type RoomId,
+  type ScriptDefinition,
+  type ScriptId,
   type SymbolDefinition,
 } from '../types';
 import { ReferenceError, UndefinedIdentifierError } from '../errors/parser';
@@ -36,14 +39,35 @@ export class GameDefinitionBuilder {
     return this.gameDefinition;
   }
 
+  public setInitialScriptDefinition(
+    definition: Pick<ScriptDefinition, 'id' | 'col' | 'line'>,
+  ) {
+    this.gameDefinition.scripts[definition.id] = {
+      ...definition,
+      body: [],
+    };
+  }
+
+  public setScriptMessageAction(
+    scriptId: ScriptId,
+    action: Omit<MessageAction, 'kind'>,
+  ) {
+    assert(
+      this.gameDefinition.scripts[scriptId],
+      'setInitialScriptDefinition must be called first',
+    );
+
+    this.gameDefinition.scripts[scriptId].body.push({
+      kind: 'message',
+      ...action,
+    });
+  }
+
   public setInitialItemDefinition(
     definition: Pick<ItemDefinition, 'id' | 'name' | 'line' | 'col'>,
   ) {
     this.gameDefinition.items[definition.id] = {
-      id: definition.id,
-      name: definition.name,
-      line: definition.line,
-      col: definition.col,
+      ...definition,
       desc: '',
       initialLocation: '',
       interactions: [],
@@ -62,10 +86,7 @@ export class GameDefinitionBuilder {
     definition: Pick<RoomDefinition, 'id' | 'name' | 'line' | 'col'>,
   ) {
     this.gameDefinition.rooms[definition.id] = {
-      id: definition.id,
-      name: definition.name,
-      line: definition.line,
-      col: definition.col,
+      ...definition,
       desc: '',
     };
 
