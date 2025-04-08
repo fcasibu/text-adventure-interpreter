@@ -28,7 +28,7 @@ ROOM "Dark Tunnel" ID=tunnel
 ROOM "Hidden Chamber" ID=chamber
   DESC "An ancient chamber covered in strange runes. A faint ethereal glow emanates from the walls."
 
-COMMAND LOOK
+COMMAND "look"
   EFFECT EXECUTE displayRoomInfo
 
 SCRIPT displayRoomInfo

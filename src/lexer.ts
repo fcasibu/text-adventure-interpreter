@@ -17,7 +17,6 @@ export class Lexer {
     ['TAKEABLE', TokenType.TAKEABLE],
     ['ID', TokenType.ID],
     ['ROOM', TokenType.ROOM],
-    ['LOOK', TokenType.LOOK],
     ['COMMAND', TokenType.COMMAND],
     ['EFFECT', TokenType.EFFECT],
     ['EXECUTE', TokenType.EXECUTE],
