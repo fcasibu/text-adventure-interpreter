@@ -28,14 +28,7 @@ export class GameDefinitionBuilder {
     items: {},
     rooms: {},
     commands: [],
-    scripts: {
-      displayRoomInfo: {
-        id: '',
-        body: [],
-        line: 0,
-        col: 0,
-      },
-    },
+    scripts: {},
     playerStartLocation: '',
   };
 

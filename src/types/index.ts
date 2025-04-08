@@ -168,8 +168,6 @@ export interface GameDefinition {
   items: Record<ItemId, ItemDefinition>;
   rooms: Record<RoomId, RoomDefinition>;
   commands: CommandDefinition[];
-  scripts: {
-    displayRoomInfo: ScriptDefinition;
-  };
+  scripts: Record<ScriptId, ScriptDefinition>;
   playerStartLocation: RoomId;
 }

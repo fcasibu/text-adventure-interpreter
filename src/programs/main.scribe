@@ -32,11 +32,11 @@ COMMAND "look"
   EFFECT EXECUTE displayRoomInfo
 
 SCRIPT displayRoomInfo
-  MESSAGE "--- {room[playerLocation].name} ---"
-  MESSAGE room[playerLocation].desc
+  MESSAGE "--- {rooms[playerLocation].name} ---"
+  MESSAGE rooms[playerLocation].desc
   IF room[playerLocation] HAS ITEMS THEN
     MESSAGE "You see:"
-    FOR item IN room[playerLocation].items DO
+    FOR item IN rooms[playerLocation].items DO
       IF item.location == playerLocation THEN
          MESSAGE " - {item.name}"
       ENDIF
