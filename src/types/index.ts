@@ -50,13 +50,13 @@ export interface VariableAccessExpression extends BaseExpression {
 
 export interface IndexedAccessExpression extends BaseExpression {
   kind: 'indexedAccess';
-  objectName: EntityId;
-  index: VariableAccessExpression;
+  object: Expression;
+  index: Expression;
 }
 
 export interface PropertyAccessExpression extends BaseExpression {
   kind: 'propertyAccess';
-  object: IndexedAccessExpression | VariableAccessExpression;
+  object: Expression;
   propertyName: string;
 }
 

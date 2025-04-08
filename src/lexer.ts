@@ -46,6 +46,7 @@ export class Lexer {
       this.scan();
     }
 
+    this.addToken(TokenType.EOL, 'EOL', this.col);
     this.addToken(TokenType.EOF, 'EOF', this.col);
 
     return this.tokens;

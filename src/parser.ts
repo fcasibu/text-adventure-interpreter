@@ -2,9 +2,14 @@ import { strict as assert } from 'assert';
 import {
   ItemInteractions,
   TokenType,
+  type Expression,
   type GameDefinition,
+  type MessageAction,
+  type ScriptAction,
+  type ScriptBlock,
   type SymbolDefinition,
   type Token,
+  type VariableAccessExpression,
   type VariableType,
   type VariableValue,
 } from './types';
@@ -63,11 +68,8 @@ export class Parser {
         }
 
         default: {
-          throw new UnexpectedTokenError(
-            `Unexpected token ${this.currentToken.value}`,
-            this.currentToken.line,
-            this.currentToken.col,
-          );
+          this.consume();
+          break;
         }
       }
     }
@@ -372,12 +374,13 @@ export class Parser {
   }
 
   private parseScriptDefinition() {
-    const { line: scriptLine, col: scriptCol } = this.currentToken;
+    const scriptToken = this.currentToken;
     this.expect(
       TokenType.SCRIPT,
       `Expected SCRIPT found ${this.currentToken.value}`,
     );
-    const { value: scriptName } = this.currentToken;
+    const nameToken = this.currentToken;
+    const scriptName = nameToken.value;
 
     this.expect(TokenType.IDENT, 'Expected script identifier after "SCRIPT"');
     this.expect(
@@ -387,90 +390,146 @@ export class Parser {
 
     this.gameDefinitionBuilder.setInitialScriptDefinition({
       id: scriptName,
-      line: scriptLine,
-      col: scriptCol,
+      line: scriptToken.line,
+      col: scriptToken.col,
     });
 
-    const scriptProperties = new Set([
-      TokenType.MESSAGE,
-      TokenType.FOR,
-      TokenType.IF,
-    ]);
+    const scriptBody: ScriptBlock = [];
+    while (!Parser.match(this.currentToken.type, TokenType.ENDSCRIPT)) {
+      let action: ScriptAction | undefined;
 
-    while (scriptProperties.has(this.currentToken.type)) {
-      switch (this.currentToken.type) {
-        case TokenType.MESSAGE: {
-          this.consume(); // skip MESSAGE keyword
-
-          const {
-            value: messageTemplate,
-            line: messageLine,
-            col: messageCol,
-          } = this.currentToken;
-
-          this.gameDefinitionBuilder.setScriptMessageAction(scriptName, {
-            messageTemplate,
-            line: messageLine,
-            col: messageCol,
-          });
-
-          this.consume(); // skip value
-          this.expect(
-            TokenType.EOL,
-            `Expected end of line found ${this.currentToken.value}`,
-          );
-          break;
-        }
-        default: {
-          throw new UnexpectedTokenError(
-            `Unexpected token ${this.currentToken.value} found within the script block ${scriptName}`,
-            scriptLine,
-            scriptCol,
-          );
-        }
+      if (this.currentToken.type === TokenType.MESSAGE) {
+        action = this.parseScriptAction();
+      } else {
+        this.consume();
       }
+
+      if (action) {
+        scriptBody.push(action);
+      }
+    }
+
+    this.gameDefinitionBuilder.setScriptBody(scriptName, scriptBody);
+
+    this.expect(
+      TokenType.ENDSCRIPT,
+      `Expected ENDSCRIPT for script '${scriptName}' but found ${this.currentToken.value}`,
+    );
+    this.expect(
+      TokenType.EOL,
+      `Expected EOL after ENDSCRIPT but found ${this.currentToken.value}`,
+    );
+  }
+
+  private parseScriptAction(): ScriptAction {
+    const actionToken = this.currentToken;
+
+    switch (actionToken.type) {
+      case TokenType.MESSAGE:
+        return this.parseMessageAction();
+      default:
+        throw new Error('not yet implemented');
     }
   }
 
-  private parseScriptBlock(scriptToken: Token) {
-    const { value: scriptName, line: scriptLine, col: scriptCol } = scriptToken;
+  private parseMessageAction(): MessageAction {
+    this.expect(TokenType.MESSAGE, `Expected MESSAGE`);
 
-    switch (this.currentToken.type) {
-      case TokenType.MESSAGE: {
-        this.consume(); // skip MESSAGE keyword
+    const messageLine = this.currentToken.line;
+    const messageCol = this.currentToken.col;
+    let actionData: Pick<MessageAction, 'messageTemplate' | 'valueExpression'>;
 
-        const {
-          value: messageTemplate,
-          line: messageLine,
-          col: messageCol,
-        } = this.currentToken;
+    if (Parser.match(this.currentToken.type, TokenType.IDENT)) {
+      const expression = this.parseExpression();
+      actionData = { valueExpression: expression };
+    } else if (Parser.match(this.currentToken.type, TokenType.STRING)) {
+      const templateToken = this.currentToken;
+      this.consume();
+      actionData = { messageTemplate: templateToken.value };
+    } else {
+      throw new UnexpectedTokenError(
+        'Expected string literal or expression after MESSAGE',
+        this.currentToken.line,
+        this.currentToken.col,
+      );
+    }
 
-        this.gameDefinitionBuilder.setScriptMessageAction(scriptName, {
-          messageTemplate,
-          line: messageLine,
-          col: messageCol,
-        });
+    const messageAction: MessageAction = {
+      kind: 'message',
+      ...actionData,
+      line: messageLine,
+      col: messageCol,
+    };
 
-        this.consume(); // skip value
-        this.expect(
-          TokenType.EOL,
-          `Expected end of line found ${this.currentToken.value}`,
-        );
+    this.expect(TokenType.EOL, 'Expected end of line after MESSAGE statement');
+    return messageAction;
+  }
+
+  private parseExpression(): Expression {
+    let leftExpr = this.parsePrimaryExpression();
+
+    while (true) {
+      if (Parser.match(this.currentToken.type, TokenType.DOT)) {
+        this.consume();
+        const propertyToken = this.currentToken;
+        if (!Parser.match(propertyToken.type, TokenType.IDENT)) {
+          throw new UnexpectedTokenError(
+            'Expected property name identifier after "."',
+            propertyToken.line,
+            propertyToken.col,
+          );
+        }
+        this.consume();
+
+        leftExpr = {
+          kind: 'propertyAccess',
+          object: leftExpr,
+          propertyName: propertyToken.value,
+          line: propertyToken.line,
+          col: propertyToken.col,
+        };
+        continue;
+      } else if (Parser.match(this.currentToken.type, TokenType.LBRACKET)) {
+        const lBracketToken = this.currentToken;
+        this.consume();
+        const indexExpr = this.parseExpression();
+        this.expect(TokenType.RBRACKET, "Expected ']' after index expression.");
+
+        leftExpr = {
+          kind: 'indexedAccess',
+          object: leftExpr,
+          index: indexExpr,
+          line: lBracketToken.line,
+          col: lBracketToken.col,
+        };
+        continue;
+      } else {
         break;
       }
-      default: {
-        throw new UnexpectedTokenError(
-          `Unexpected token ${this.currentToken.value} found within the script block ${scriptName}`,
-          scriptLine,
-          scriptCol,
-        );
-      }
     }
+    return leftExpr;
   }
 
-  private parsePropertyAccessExpression() {}
+  private parsePrimaryExpression(): Expression {
+    const token = this.currentToken;
 
-  private parseIndexedAccessExpression() {}
+    if (Parser.match(token.type, TokenType.IDENT)) {
+      this.consume();
+      const variableAccess: VariableAccessExpression = {
+        kind: 'variableAccess',
+        variableName: token.value,
+        line: token.line,
+        col: token.col,
+      };
+      return variableAccess;
+    }
+
+    throw new UnexpectedTokenError(
+      `Expected expression start (identifier or literal) but found ${token.value}`,
+      token.line,
+      token.col,
+    );
+  }
 
   private parseVariableValue(): {
     variableValue: VariableValue;
@@ -556,12 +615,9 @@ export class Parser {
     this.currentToken = token;
   }
 
-  private static match(tokenType: TokenType, toMatchTokenType: TokenType) {
-    return tokenType === toMatchTokenType;
-  }
-
-  private expect(tokenType: TokenType, message: string) {
-    if (!Parser.match(this.currentToken.type, tokenType)) {
+  private expect(tokenType: TokenType, message: string): Token {
+    const token = this.currentToken;
+    if (!Parser.match(token.type, tokenType)) {
       throw new UnexpectedTokenError(
         message,
         this.currentToken.line,
@@ -570,9 +626,14 @@ export class Parser {
     }
 
     this.consume();
+    return token;
   }
 
   private eof() {
     return this.currentToken.type === TokenType.EOF;
+  }
+
+  private static match(tokenType: TokenType, toMatchTokenType: TokenType) {
+    return tokenType === toMatchTokenType;
   }
 }

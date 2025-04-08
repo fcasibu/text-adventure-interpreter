@@ -8,9 +8,9 @@ import {
   type GameVariableDefinition,
   type ItemDefinition,
   type ItemId,
-  type MessageAction,
   type RoomDefinition,
   type RoomId,
+  type ScriptBlock,
   type ScriptDefinition,
   type ScriptId,
   type SymbolDefinition,
@@ -48,19 +48,13 @@ export class GameDefinitionBuilder {
     };
   }
 
-  public setScriptMessageAction(
-    scriptId: ScriptId,
-    action: Omit<MessageAction, 'kind'>,
-  ) {
+  public setScriptBody(scriptId: ScriptId, body: ScriptBlock) {
     assert(
       this.gameDefinition.scripts[scriptId],
       'setInitialScriptDefinition must be called first',
     );
 
-    this.gameDefinition.scripts[scriptId].body.push({
-      kind: 'message',
-      ...action,
-    });
+    this.gameDefinition.scripts[scriptId].body = body;
   }
 
   public setInitialItemDefinition(
