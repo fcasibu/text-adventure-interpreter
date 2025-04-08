@@ -42,6 +42,11 @@ export class Parser {
           break;
         }
 
+        case TokenType.ROOM: {
+          this.parseRoomDefinition();
+          break;
+        }
+
         case TokenType.EOL: {
           this.consume();
           break;
@@ -142,15 +147,7 @@ export class Parser {
     while (itemProperties.has(this.currentToken.type)) {
       switch (this.currentToken.type) {
         case TokenType.DESC: {
-          this.expect(
-            TokenType.DESC,
-            `Expected DESC found ${this.currentToken.value}`,
-          );
-          const { variableValue, variableType } = this.parseVariableValue();
-          assert(
-            typeof variableValue === 'string',
-            `Invalid value type ${variableType}`,
-          );
+          const { variableValue } = this.parseObjectDescription();
 
           this.gameDefinitionBuilder.setItemDesc(identifier, variableValue);
 
@@ -225,6 +222,68 @@ export class Parser {
     }
   }
 
+  private parseRoomDefinition() {
+    const { line: roomLine, col: roomCol } = this.currentToken;
+    this.expect(
+      TokenType.ROOM,
+      `Expected ROOM found ${this.currentToken.value}`,
+    );
+    const { value: name } = this.currentToken;
+
+    this.expect(
+      TokenType.STRING,
+      `Expected string name of ITEM found ${this.currentToken.value}`,
+    );
+
+    this.expect(TokenType.ID, 'Expected "ID" keyword after ROOM name.');
+    this.expect(TokenType.ASSIGNMENT, 'Expected "=" after "ID"');
+
+    const { value: identifier, line: idLine, col: idCol } = this.currentToken;
+
+    if (!this.symbolsMap.has(identifier)) {
+      throw new UndefinedIdentifierError(
+        'Identifier',
+        identifier,
+        idLine,
+        idCol,
+      );
+    }
+
+    this.expect(
+      TokenType.IDENT,
+      `Expected Identifier for ITEM found ${this.currentToken.value}`,
+    );
+    this.expect(TokenType.EOL, `Expected EOL found ${this.currentToken.value}`);
+
+    this.gameDefinitionBuilder.setInitialRoomDefinition({
+      id: identifier,
+      name,
+      line: roomLine,
+      col: roomCol,
+    });
+
+    const roomProperties = new Set([TokenType.DESC]);
+
+    while (roomProperties.has(this.currentToken.type)) {
+      switch (this.currentToken.type) {
+        case TokenType.DESC: {
+          const { variableValue } = this.parseObjectDescription();
+          this.gameDefinitionBuilder.setRoomDesc(identifier, variableValue);
+
+          this.consume(); // skip value
+          this.expect(
+            TokenType.EOL,
+            `Expected end of line found ${this.currentToken.value}`,
+          );
+          break;
+        }
+
+        default:
+          throw new Error('not yet implemented');
+      }
+    }
+  }
+
   private parseVariableValue(): {
     variableValue: VariableValue;
     variableType: VariableType;
@@ -280,6 +339,20 @@ export class Parser {
     }
 
     return { variableValue: parsedInitialValue, variableType: variableType };
+  }
+
+  private parseObjectDescription() {
+    this.expect(
+      TokenType.DESC,
+      `Expected DESC found ${this.currentToken.value}`,
+    );
+    const { variableValue, variableType } = this.parseVariableValue();
+    assert(
+      typeof variableValue === 'string',
+      `Invalid value type ${variableType}`,
+    );
+
+    return { variableValue, variableType };
   }
 
   private consume() {

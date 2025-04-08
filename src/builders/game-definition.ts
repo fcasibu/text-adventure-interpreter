@@ -7,6 +7,8 @@ import {
   type GameVariableDefinition,
   type ItemDefinition,
   type ItemId,
+  type RoomDefinition,
+  type RoomId,
   type SymbolDefinition,
 } from '../types';
 import { ReferenceError, UndefinedIdentifierError } from '../errors/parser';
@@ -54,6 +56,29 @@ export class GameDefinitionBuilder {
     };
 
     return this;
+  }
+
+  public setInitialRoomDefinition(
+    definition: Pick<RoomDefinition, 'id' | 'name' | 'line' | 'col'>,
+  ) {
+    this.gameDefinition.rooms[definition.id] = {
+      id: definition.id,
+      name: definition.name,
+      line: definition.line,
+      col: definition.col,
+      desc: '',
+    };
+
+    return this;
+  }
+
+  public setRoomDesc(roomId: RoomId, desc: string) {
+    assert(
+      this.gameDefinition.rooms[roomId],
+      'setInitialRoomDefinition must be called first',
+    );
+
+    this.gameDefinition.rooms[roomId].desc = desc;
   }
 
   public setItemDesc(itemId: ItemId, desc: string) {
