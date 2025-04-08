@@ -1,5 +1,6 @@
 import { strict as assert } from 'assert';
 import {
+  ItemInteractions,
   TokenType,
   type GameDefinition,
   type SymbolDefinition,
@@ -35,9 +36,23 @@ export class Parser {
           this.parseVariableDefinition();
           break;
         }
-        // TODO(fcasibu): other token types
+
+        case TokenType.ITEM: {
+          this.parseItemDefinition();
+          break;
+        }
+
+        case TokenType.EOL: {
+          this.consume();
+          break;
+        }
+
         default: {
-          this.consume(); // ignore other things for now
+          throw new UnexpectedTokenError(
+            `Unexpected token ${this.currentToken.value}`,
+            this.currentToken.line,
+            this.currentToken.col,
+          );
         }
       }
     }
@@ -46,12 +61,7 @@ export class Parser {
   }
 
   private parseVariableDefinition() {
-    assert(
-      this.currentToken.type === TokenType.VAR,
-      'parseVariableDefinition should only be called for a variable',
-    );
-
-    this.consume(); // skip var keyword
+    this.expect(TokenType.VAR, `Expected VAR found ${this.currentToken.value}`);
 
     const { value: variableName, line, col } = this.currentToken;
 
@@ -79,11 +89,140 @@ export class Parser {
       this.symbolsMap,
     );
 
-    this.consume();
+    this.consume(); // skip variable value
+    this.expect(TokenType.EOL, `Expected EOL found ${this.currentToken.value}`);
+  }
+
+  private parseItemDefinition() {
+    const { line: itemLine, col: itemCol } = this.currentToken;
     this.expect(
-      TokenType.EOL,
-      `Expected end of line after variable value ${variableValue}`,
+      TokenType.ITEM,
+      `Expected ITEM found ${this.currentToken.value}`,
     );
+    const { value: name } = this.currentToken;
+
+    this.expect(
+      TokenType.STRING,
+      `Expected string name of ITEM found ${this.currentToken.value}`,
+    );
+
+    this.expect(TokenType.ID, 'Expected "ID" keyword after item name.');
+    this.expect(TokenType.ASSIGNMENT, 'Expected "=" after "ID"');
+
+    const { value: identifier, line: idLine, col: idCol } = this.currentToken;
+
+    if (!this.symbolsMap.has(identifier)) {
+      throw new UndefinedIdentifierError(
+        'Identifier',
+        identifier,
+        idLine,
+        idCol,
+      );
+    }
+
+    this.expect(
+      TokenType.IDENT,
+      `Expected Identifier for ITEM found ${this.currentToken.value}`,
+    );
+    this.expect(TokenType.EOL, `Expected EOL found ${this.currentToken.value}`);
+
+    this.gameDefinitionBuilder.setInitialItemDefinition({
+      id: identifier,
+      name,
+      line: itemLine,
+      col: itemCol,
+    });
+
+    const itemProperties = new Set([
+      TokenType.DESC,
+      TokenType.LOCATION,
+      TokenType.TAKEABLE,
+    ]);
+
+    while (itemProperties.has(this.currentToken.type)) {
+      switch (this.currentToken.type) {
+        case TokenType.DESC: {
+          this.expect(
+            TokenType.DESC,
+            `Expected DESC found ${this.currentToken.value}`,
+          );
+          const { variableValue, variableType } = this.parseVariableValue();
+          assert(
+            typeof variableValue === 'string',
+            `Invalid value type ${variableType}`,
+          );
+
+          this.gameDefinitionBuilder.setItemDesc(identifier, variableValue);
+
+          this.consume(); // skip value
+          this.expect(
+            TokenType.EOL,
+            `Expected end of line found ${this.currentToken.value}`,
+          );
+          break;
+        }
+
+        case TokenType.LOCATION: {
+          this.expect(
+            TokenType.LOCATION,
+            `Expected LOCATION found ${this.currentToken.value}`,
+          );
+          this.expect(TokenType.ASSIGNMENT, `Expected "=" after "LOCATION"`);
+          const { variableValue, variableType } = this.parseVariableValue();
+          assert(
+            typeof variableValue === 'string',
+            `Invalid value type ${variableType}`,
+          );
+
+          if (!this.symbolsMap.has(variableValue)) {
+            throw new UndefinedIdentifierError(
+              'Identifier for ITEM LOCATION',
+              variableValue,
+              this.currentToken.line,
+              this.currentToken.col,
+            );
+          }
+          this.gameDefinitionBuilder.setItemLocation(identifier, variableValue);
+
+          this.consume(); // skip value
+          this.expect(
+            TokenType.EOL,
+            `Expected end of line found ${this.currentToken.value}`,
+          );
+          break;
+        }
+
+        case TokenType.TAKEABLE: {
+          this.expect(
+            TokenType.TAKEABLE,
+            `Expected TAKEABLE found ${this.currentToken.value}`,
+          );
+          this.expect(TokenType.ASSIGNMENT, `Expected "=" after "TAKEABLE"`);
+
+          const { variableValue, variableType } = this.parseVariableValue();
+          assert(
+            typeof variableValue === 'boolean',
+            `Invalid value type ${variableType}`,
+          );
+
+          if (variableValue) {
+            this.gameDefinitionBuilder.setItemInteraction(
+              identifier,
+              ItemInteractions.Takeable,
+            );
+          }
+
+          this.consume(); // skip value
+          this.expect(
+            TokenType.EOL,
+            `Expected end of line found ${this.currentToken.value}`,
+          );
+          break;
+        }
+        default:
+          break;
+      }
+    }
   }
 
   private parseVariableValue(): {
@@ -133,7 +272,7 @@ export class Parser {
       }
       default: {
         throw new UnexpectedTokenError(
-          `Unexpected token type ${valueToken.type} for variable value assignment`,
+          `Unexpected token ${valueToken.value} for variable value assignment`,
           valueToken.line,
           valueToken.col,
         );

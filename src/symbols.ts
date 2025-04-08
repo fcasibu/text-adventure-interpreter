@@ -59,12 +59,7 @@ export class SymbolParser {
   }
 
   private parseVariableDefinition() {
-    assert(
-      this.currentToken.type === TokenType.VAR,
-      'parseVariableDefinition should only be called for a variable',
-    );
-
-    this.consume(); // skip var keyword
+    this.expect(TokenType.VAR, `Expected VAR found ${this.currentToken.value}`);
 
     const { value, line, col, type } = this.currentToken;
 
@@ -90,18 +85,18 @@ export class SymbolParser {
       SymbolParser.createSymbol(NamedEntities.VARIABLE, line, col),
     );
 
-    this.goToNextLine();
+    this.skipToNextLine();
   }
 
   private parseItemDefinition() {
-    assert(
-      this.currentToken.type === TokenType.ITEM,
-      'parseItemDefinition should only be called for an item',
+    this.expect(
+      TokenType.ITEM,
+      `Expected ITEM found ${this.currentToken.value}`,
     );
-
-    this.consume(); // skip item keyword
-    this.consume(); // skip name
-
+    this.expect(
+      TokenType.STRING,
+      `Expected string name for ITEM found ${this.currentToken.value}`,
+    );
     this.expect(TokenType.ID, 'Expected "ID" keyword after item name.');
     this.expect(
       TokenType.ASSIGNMENT,
@@ -131,18 +126,19 @@ export class SymbolParser {
       SymbolParser.createSymbol(NamedEntities.ITEM, line, col),
     );
 
-    this.consume(); // skip eol
+    this.consume(); // skip EOL
+    this.expect(TokenType.EOL, `Expected EOL found ${this.currentToken.value}`);
   }
 
   private parseRoomDefinition() {
-    assert(
-      this.currentToken.type === TokenType.ROOM,
-      'parseRoomDefinition should only be called for a room',
+    this.expect(
+      TokenType.ROOM,
+      `Expected ROOM found ${this.currentToken.value}`,
     );
-
-    this.consume(); // skip room keyword
-    this.consume(); // skip name
-
+    this.expect(
+      TokenType.STRING,
+      `Expected string name for ROOM found ${this.currentToken.value}`,
+    );
     this.expect(TokenType.ID, 'Expected "ID" after room name');
     this.expect(TokenType.ASSIGNMENT, 'Expected "=" after "ID" keyword');
 
@@ -169,16 +165,15 @@ export class SymbolParser {
       SymbolParser.createSymbol(NamedEntities.ROOM, line, col),
     );
 
-    this.consume(); // skip eol
+    this.consume(); // skip EOL
+    this.expect(TokenType.EOL, `Expected EOL found ${this.currentToken.value}`);
   }
 
   private parseScriptDefinition() {
-    assert(
-      this.currentToken.type === TokenType.SCRIPT,
-      'parseScriptDefinition should only be called for a script',
+    this.expect(
+      TokenType.SCRIPT,
+      `Expected SCRIPT found ${this.currentToken.value}`,
     );
-
-    this.consume(); // skip script keyword
 
     const { type, value, line, col } = this.currentToken;
     if (!SymbolParser.match(type, TokenType.IDENT)) {
@@ -219,7 +214,7 @@ export class SymbolParser {
     this.currentToken = token;
   }
 
-  private goToNextLine() {
+  private skipToNextLine() {
     while (!this.eol()) {
       this.consume();
     }

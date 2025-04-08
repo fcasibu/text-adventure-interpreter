@@ -118,14 +118,16 @@ export interface GameVariableDefinition {
   col: number;
 }
 
+export enum ItemInteractions {
+  Takeable,
+}
+
 export interface ItemDefinition {
   id: ItemId;
   name: string;
   desc: string;
   initialLocation: RoomId;
-  // will probably make this an enum or string literal isntead of a boolean
-  // likely 'craftable' | 'droppable' | 'wieldable' ... maybe more
-  isTakeable: boolean;
+  interactions: ItemInteractions[];
   line: number;
   col: number;
 }

@@ -1,9 +1,12 @@
 import { strict as assert } from 'assert';
 import { PLAYER_LOCATION_VAR } from '../constants/parser';
 import {
+  ItemInteractions,
   NamedEntities,
   type GameDefinition,
   type GameVariableDefinition,
+  type ItemDefinition,
+  type ItemId,
   type SymbolDefinition,
 } from '../types';
 import { ReferenceError, UndefinedIdentifierError } from '../errors/parser';
@@ -37,8 +40,52 @@ export class GameDefinitionBuilder {
     return this.gameDefinition;
   }
 
-  public setPlayerLocation(data: GameVariableDefinition) {
-    this.gameDefinition.variables.playerLocation = data;
+  public setInitialItemDefinition(
+    definition: Pick<ItemDefinition, 'id' | 'name' | 'line' | 'col'>,
+  ) {
+    this.gameDefinition.items[definition.id] = {
+      id: definition.id,
+      name: definition.name,
+      line: definition.line,
+      col: definition.col,
+      desc: '',
+      initialLocation: '',
+      interactions: [],
+    };
+
+    return this;
+  }
+
+  public setItemDesc(itemId: ItemId, desc: string) {
+    assert(
+      this.gameDefinition.items[itemId],
+      'setInitialItemDefinition must be called first',
+    );
+
+    this.gameDefinition.items[itemId].desc = desc;
+
+    return this;
+  }
+
+  public setItemLocation(itemId: ItemId, location: string) {
+    assert(
+      this.gameDefinition.items[itemId],
+      'setInitialItemDefinition must be called first',
+    );
+
+    this.gameDefinition.items[itemId].initialLocation = location;
+
+    return this;
+  }
+
+  public setItemInteraction(itemId: ItemId, interaction: ItemInteractions) {
+    assert(
+      this.gameDefinition.items[itemId],
+      'setInitialItemDefinition must be called first',
+    );
+
+    this.gameDefinition.items[itemId].interactions.push(interaction);
+
     return this;
   }
 

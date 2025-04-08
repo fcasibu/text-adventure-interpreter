@@ -6,7 +6,7 @@ VAR bool = true
 ITEM "Rusty Sword" ID=sword
   DESC "It looks dull, but the edge seems sharp enough."
   LOCATION=cave
-  TAKEABLE=false
+  TAKEABLE=true
 
 ITEM "Stick" ID=stick
   DESC "A long, dry stick lies on the ground."
